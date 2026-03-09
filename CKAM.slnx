@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CKAM.Desktop/CKAM.Desktop.csproj" />
+  <Project Path="CKAM/CKAM.csproj" />
+</Solution>
