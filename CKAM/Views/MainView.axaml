@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -12,5 +12,30 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-  <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+  <Panel Margin="20">
+	  <StackPanel IsVisible="{Binding !IsLoggedIn}" Spacing="10">
+		  <TextBlock Text="МАКС" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="67"></TextBlock>
+          <TextBox Text="{Binding Username}" Width="300" Height="20" Watermark="Имя пользователя"></TextBox>
+          <TextBox Text="{Binding Password}" Width="300" Height="20" Watermark="Пароль" PasswordChar="*"></TextBox>
+          <Button Content="Войти" Width="80" Height="30" Command="{Binding LoginCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"></Button>
+      </StackPanel>
+      <Grid IsVisible="{Binding IsLoggedIn}" RowDefinitions="*,auto">
+		  <ListBox ItemsSource="{Binding Messages}" >
+              <ListBox.ItemTemplate>
+                   <DataTemplate>
+					   <StackPanel Margin="5" Spacing="5">
+                           <TextBlock Text="{Binding SenderName}" FontWeight="Bold" Foreground="SkyBlue" />
+                           <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
+                           <TextBlock Text="{Binding CreatedAt}" TextWrapping="Wrap" Foreground="Gray" />
+                       </StackPanel>
+                   </DataTemplate>
+              </ListBox.ItemTemplate>
+          </ListBox>
+          <Grid Grid.Row="1" ColumnDefinitions="*,auto" Margin="0,10,0,0">
+              <TextBox Text="{Binding MessageContent}" Grid.Column="0" Height="30" Watermark="Введите сообщение..."></TextBox>
+              <Button Grid.Column="1" Content="Отправить" Margin="5,0,0,0" Width="100" Height="30" Command="{Binding SendMessageCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"></Button>
+          </Grid>
+      </Grid>
+      
+  </Panel>
 </UserControl>
