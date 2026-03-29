@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using System;
+using System.Diagnostics;
 
 public partial class MainViewModel : ViewModelBase
 {
@@ -19,6 +20,7 @@ public partial class MainViewModel : ViewModelBase
     private string messageContent = "";
     [ObservableProperty]
     private bool isLoggedIn = false;
+    private long user_id;
     public ObservableCollection<Message> Messages { get; } = new();
     [RelayCommand]
     async Task LoginAsync()
@@ -28,22 +30,28 @@ public partial class MainViewModel : ViewModelBase
             if (await chatService.LoginAsync(Username, Password))
             {
                 var history = await chatService.GetHistoryAsync();
-                foreach (var message in history) Messages.Add(message);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    Messages.Clear();
+                    foreach (var message in history) Messages.Add(message);
+                });
                 await chatService.ConnectWebSocketAsync();
                 chatService.OnMessageReceived += (message => Dispatcher.UIThread.Post(() => Messages.Add(message)));
                 IsLoggedIn = true;
             }
+            else IsLoggedIn = false;
         }
         catch(System.Exception ex)
         {
-            Console.Write(ex.ToString());
+            Debug.WriteLine(ex.Message);
         }
     }
     [RelayCommand]
     async Task SendMessageAsync()
     {
         if(string.IsNullOrWhiteSpace(MessageContent)) return;
-        await chatService.SendMessageAsync(0, MessageContent);
+        await chatService.SendMessageAsync(MessageContent);
+        // Messages.Add(new Message { SenderName = Username, Content = MessageContent, CreatedAt = DateTime.Now.ToString("HH:mm:ss") });
         MessageContent = "";
     }
 }

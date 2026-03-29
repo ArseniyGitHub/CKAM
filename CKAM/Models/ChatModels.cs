@@ -10,7 +10,7 @@ namespace CKAM.Models
     {
         [JsonPropertyName("sender_name")]
         public string SenderName { get; set; } = string.Empty;
-        [property: JsonPropertyName("sender_id")]
+        [JsonPropertyName("sender_id")]
         long SenderId;
         [JsonPropertyName("id")]
         long Id { get; set; }
@@ -35,7 +35,7 @@ namespace CKAM.Models
         [property: JsonPropertyName("token")]
         public string Token { get; set; } = string.Empty;
         [property: JsonPropertyName("user_id")]
-        long UserId { get; set; }
+        public long UserId { get; set; }
     }
     public record Chat {
         [property: JsonPropertyName("name")]

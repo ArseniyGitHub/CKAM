@@ -8,12 +8,15 @@ using CKAM.Models;
 using System.Threading.Tasks;
 using System.Net.Http.Json;
 using System.Threading;
+using System.Text.Json;
+using System.Diagnostics;
 
 namespace CKAM.Services
 {
     internal class ChatService
     {
         private string? token;
+        private long? user_id;
         private ClientWebSocket webSocket;
         private readonly HttpClient httpClient = new() { BaseAddress = new Uri("http://localhost:24242") };
         public event Action<Message> OnMessageReceived;
@@ -26,19 +29,39 @@ namespace CKAM.Services
                 if (!response.IsSuccessStatusCode) return false;
                 var loginResponce = await response.Content.ReadFromJsonAsync<LoginResponce>();
                 token = loginResponce?.Token;
+                user_id = loginResponce?.UserId;
                 return true;
             }
             catch { return false; }
         }
         public async Task<List<Message>> GetHistoryAsync()
         {
-            return await httpClient.GetFromJsonAsync<List<Message>>("/api/messages") ?? new();
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, "api/messages");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", token);
+                }
+                var responce = await httpClient.SendAsync(req);
+                if (responce.IsSuccessStatusCode)
+                {
+                    var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    return await responce.Content.ReadFromJsonAsync<List<Message>>(options) ?? new();
+                }
+                return new();
+            } 
+            catch(Exception ex)
+            { 
+                Debug.WriteLine($"Ошибка получений истории: {ex.Message}");
+                return new(); 
+            }
         }
         public async Task ConnectWebSocketAsync()
         {
             webSocket = new ClientWebSocket();
             webSocket.Options.SetRequestHeader("Authorization", $"Bearer {token}");
-            await webSocket.ConnectAsync(new Uri("ws://localhost:24242/ws"), CancellationToken.None);
+            await webSocket.ConnectAsync(new Uri("ws://localhost:24242"), CancellationToken.None);
             _ = Task.Run(ReceiveLoop);
         }
 
@@ -56,10 +79,10 @@ namespace CKAM.Services
             }
         }
 
-        public async Task SendMessageAsync(long userId, string content)
+        public async Task SendMessageAsync(string content)
         {
             if (webSocket == null || webSocket.State != WebSocketState.Open) return;
-            var json = System.Text.Json.JsonSerializer.Serialize(new { user_id = userId, content = content });
+            var json = System.Text.Json.JsonSerializer.Serialize(new { user_id = user_id, content = content });
             var bytes = Encoding.UTF8.GetBytes(json);
             await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
 
