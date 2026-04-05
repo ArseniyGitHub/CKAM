@@ -21,8 +21,16 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool isLoggedIn = false;
     private long user_id;
+    [ObservableProperty]
+    private string statusMessage = "";
+    [ObservableProperty]
+    private bool isRegisterMode = false;
+    [ObservableProperty]
+    private string authButtonText = "Выйти";
+    [ObservableProperty]
+    private string switchModeText = "Нет аккаунта? Пожаловаться";
+
     public ObservableCollection<Message> Messages { get; } = new();
-    [RelayCommand]
     async Task LoginAsync()
     {
         try
@@ -47,11 +55,37 @@ public partial class MainViewModel : ViewModelBase
         }
     }
     [RelayCommand]
+    async Task ExecAuthAsync()
+    {
+        if (IsRegisterMode)
+        {
+            var error = await chatService.RegisterAsync(Username, Password);
+            if (error == null)
+            {
+                await LoginAsync();
+            }
+            else
+            {
+                StatusMessage = error;
+            }
+        }
+        else await LoginAsync();
+    }
+    [RelayCommand]
     async Task SendMessageAsync()
     {
         if(string.IsNullOrWhiteSpace(MessageContent)) return;
         await chatService.SendMessageAsync(MessageContent);
         // Messages.Add(new Message { SenderName = Username, Content = MessageContent, CreatedAt = DateTime.Now.ToString("HH:mm:ss") });
         MessageContent = "";
+    }
+
+    [RelayCommand]
+    async Task SwitchAuthMode()
+    {
+        IsRegisterMode = !IsRegisterMode;
+        AuthButtonText = IsRegisterMode ? "Зарегистрироваться" : "Войти";
+        SwitchModeText = IsRegisterMode ? "Уже есть аккаунт? Войти" : "Нет аккаунта? Пожаловаться";
+        StatusMessage = "";
     }
 }

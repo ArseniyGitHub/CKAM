@@ -5,19 +5,26 @@
              xmlns:vm="clr-namespace:CKAM.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="CKAM.Views.MainView"
-             x:DataType="vm:MainViewModel">
+             x:DataType="vm:MainViewModel"
+             xmlns:converter="clr-namespace:CKAM.Converters">
   <Design.DataContext>
     <!-- This only sets the DataContext for the previewer in an IDE,
          to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
     <vm:MainViewModel />
   </Design.DataContext>
-
-  <Panel Margin="20">
-	  <StackPanel IsVisible="{Binding !IsLoggedIn}" Spacing="10">
-		  <TextBlock Text="МАКС" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="67"></TextBlock>
-          <TextBox Text="{Binding Username}" Width="300" Height="20" Watermark="Имя пользователя"></TextBox>
-          <TextBox Text="{Binding Password}" Width="300" Height="20" Watermark="Пароль" PasswordChar="*"></TextBox>
-          <Button Content="Войти" Width="80" Height="30" Command="{Binding LoginCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"></Button>
+    <UserControl.Resources>
+        <converter:RegistrationTitleConverter x:Key="RegistrationTitleConverter"/>
+    </UserControl.Resources>
+  <Panel>
+      <Image IsVisible="{Binding !IsLoggedIn}" Source="avares://CKAM/Assets/max.jpg" Stretch="Fill"/>
+	  <StackPanel Spacing="15" VerticalAlignment="Center" HorizontalAlignment="Center" Width="450">
+		  <TextBlock Text="МАКС" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="67" FontWeight="Bold" Foreground="White"/>
+          <TextBlock Text="{Binding IsRegisterMode, Converter={StaticResource RegistrationTitleConverter}}" HorizontalAlignment="Center" FontSize="17" VerticalAlignment="Center" Foreground="Gray" Margin="0 0 0 10"/>
+          <TextBox Text="{Binding Username}" Width="300" Height="40" Watermark="Имя пользователя"/>
+          <TextBox Text="{Binding Password}" Width="300" Height="40" Watermark="Пароль" PasswordChar="*"/>
+          <Button Content="{Binding AuthButtonText}" Width="170" Height="40" Command="{Binding ExecAuthCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Foreground="White" Background="#3D5AFE" FontWeight="SemiBold"></Button>
+          <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" Foreground="White"></TextBlock>
+          <Button Content="{Binding SwitchModeText}" Width="270" Height="40" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding SwitchAuthModeCommand}" Foreground="Green"/>
       </StackPanel>
       <Grid IsVisible="{Binding IsLoggedIn}" RowDefinitions="*,auto">
 		  <ListBox ItemsSource="{Binding Messages}" >

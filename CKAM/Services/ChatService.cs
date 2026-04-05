@@ -34,6 +34,16 @@ namespace CKAM.Services
             }
             catch { return false; }
         }
+        public async Task<string?> RegisterAsync(string username, string password)
+        {
+            try
+            {
+                var response = await httpClient.PostAsJsonAsync("/api/register", new { username, password });
+                if (!response.IsSuccessStatusCode) return "Ошибка регистрации: " + response.StatusCode;
+                return null;
+            }
+            catch (Exception ex) { return $"Ошибка регистрации: {ex.Message}"; }
+        }
         public async Task<List<Message>> GetHistoryAsync()
         {
             try
@@ -68,14 +78,23 @@ namespace CKAM.Services
         public async Task ReceiveLoop()
         {
             var buffer = new byte[1024 * 4];
-            while (webSocket.State == WebSocketState.Open)
+            try
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                if (result.MessageType == WebSocketMessageType.Close) break;
+                while (webSocket.State == WebSocketState.Open)
+                {
+                    var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    if (result.MessageType == WebSocketMessageType.Close) break;
 
-                var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                var message = System.Text.Json.JsonSerializer.Deserialize<Message>(messageJson);
-                if (message != null) OnMessageReceived?.Invoke(message);
+                    var messageJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    var message = System.Text.Json.JsonSerializer.Deserialize<Message>(messageJson);
+                    if (message != null) OnMessageReceived?.Invoke(message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка в WebSocket: {ex.Message}");
+                await Task.Delay(3000);
+                await ConnectWebSocketAsync();
             }
         }
 
