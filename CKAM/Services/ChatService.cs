@@ -18,7 +18,7 @@ namespace CKAM.Services
         private string? token;
         private long? user_id;
         private ClientWebSocket webSocket;
-        private readonly HttpClient httpClient = new() { BaseAddress = new Uri("http://localhost:24242") };
+        private readonly HttpClient httpClient;
         public event Action<Message> OnMessageReceived;
         public event Action<Message> OnMessageSent;
         public async Task<bool> LoginAsync(string username, string password)
@@ -69,9 +69,8 @@ namespace CKAM.Services
         }
         public async Task ConnectWebSocketAsync()
         {
-            webSocket = new ClientWebSocket();
             webSocket.Options.SetRequestHeader("Authorization", $"Bearer {token}");
-            await webSocket.ConnectAsync(new Uri("ws://localhost:24242"), CancellationToken.None);
+            await webSocket.ConnectAsync(new Uri("wss://localhost:24242"), CancellationToken.None);
             _ = Task.Run(ReceiveLoop);
         }
 
@@ -105,6 +104,14 @@ namespace CKAM.Services
             var bytes = Encoding.UTF8.GetBytes(json);
             await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
 
+        }
+        public ChatService()
+        {
+            var handler = new HttpClientHandler();
+            handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+            httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://localhost:24242") }; 
+            webSocket = new ClientWebSocket();
+            webSocket.Options.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
         }
     }
 }
