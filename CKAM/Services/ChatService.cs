@@ -21,11 +21,12 @@ namespace CKAM.Services
         private readonly HttpClient httpClient;
         public event Action<Message> OnMessageReceived;
         public event Action<Message> OnMessageSent;
+
         public async Task<bool> LoginAsync(string username, string password)
         {
             try
             {
-                var response = await httpClient.PostAsJsonAsync("/api/login", new { username, password });
+                var response = await httpClient.PostAsJsonAsync("api/login", new { username, password });
                 if (!response.IsSuccessStatusCode) return false;
                 var loginResponce = await response.Content.ReadFromJsonAsync<LoginResponce>();
                 token = loginResponce?.Token;
@@ -38,20 +39,42 @@ namespace CKAM.Services
         {
             try
             {
-                var response = await httpClient.PostAsJsonAsync("/api/register", new { username, password });
+                var response = await httpClient.PostAsJsonAsync("api/register", new { username, password });
                 if (!response.IsSuccessStatusCode) return "Ошибка регистрации: " + response.StatusCode;
                 return null;
             }
             catch (Exception ex) { return $"Ошибка регистрации: {ex.Message}"; }
         }
-        public async Task<List<Message>> GetHistoryAsync()
+        public async Task<List<Chat>> GetChatsAsync()
         {
             try
             {
-                using var req = new HttpRequestMessage(HttpMethod.Get, "api/messages");
+                using var req = new HttpRequestMessage(HttpMethod.Get, "api/chats");
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var responce = await httpClient.SendAsync(req);
+                if (responce.IsSuccessStatusCode)
+                {
+                    return await responce.Content.ReadFromJsonAsync<List<Chat>>() ?? new();
+                }
+                return new();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка получений чатов: {ex.Message}");
+                return new();
+            }
+        }
+
+        
+
+        public async Task<List<Message>> GetChatHistoryAsync(long chat_id)
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, $"api/messages?chat_id={chat_id}");
                 if (!string.IsNullOrEmpty(token))
                 {
-                    req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", token);
+                    req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                 }
                 var responce = await httpClient.SendAsync(req);
                 if (responce.IsSuccessStatusCode)
@@ -60,11 +83,11 @@ namespace CKAM.Services
                     return await responce.Content.ReadFromJsonAsync<List<Message>>(options) ?? new();
                 }
                 return new();
-            } 
-            catch(Exception ex)
-            { 
-                Debug.WriteLine($"Ошибка получений истории: {ex.Message}");
-                return new(); 
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка получений истории чата {chat_id}: {ex.Message}");
+                return new();
             }
         }
         public async Task ConnectWebSocketAsync()
@@ -97,19 +120,63 @@ namespace CKAM.Services
             }
         }
 
-        public async Task SendMessageAsync(string content)
+        
+
+        private async Task SendEventAsync(object payload)
         {
             if (webSocket == null || webSocket.State != WebSocketState.Open) return;
-            var json = System.Text.Json.JsonSerializer.Serialize(new { user_id = user_id, content = content });
+            var json = System.Text.Json.JsonSerializer.Serialize(payload);
             var bytes = Encoding.UTF8.GetBytes(json);
             await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
 
+        public async Task SendMessageAsync(string content, long chat_id) => await SendEventAsync(new
+        {
+            type = "message",
+            content = content,
+            chat_id = chat_id
+        });
+
+        public async Task SendJoinRoomAsync(long chat_id) => await SendEventAsync(new
+        {
+            type = "join_room",
+            chat_id = chat_id
+        });
+
+        public async Task SendTypingAsync(long chat_id) => await SendEventAsync(new
+        {
+            type = "typing",
+            chat_id = chat_id
+        });
+        public async Task<Chat?> CreateChatAsync(string name, string chatType = "group", string description = "")
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Post, "api/chats");
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                req.Content = JsonContent.Create( new { name = name, chat_type = chatType, description = description });
+                var responce = await httpClient.SendAsync(req);
+                if (responce != null)
+                {
+                    if(responce.IsSuccessStatusCode)
+                    {
+                        return await responce.Content.ReadFromJsonAsync<Chat>();
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка создания чата: {ex.Message}");
+                
+            }
+            return null;
         }
         public ChatService()
         {
             var handler = new HttpClientHandler();
             handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
-            httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://localhost:24242") }; 
+            httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://localhost:24242/") }; 
             webSocket = new ClientWebSocket();
             webSocket.Options.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
         }

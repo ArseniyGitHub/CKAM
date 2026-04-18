@@ -43,7 +43,7 @@ namespace CKAM.Models
         [property: JsonPropertyName("description")]
         public string Descr { get; set; } = string.Empty;
         [property: JsonPropertyName("chat_id")]
-        long id { get; set; }
+        public long Id { get; set; }
         [property: JsonPropertyName("chat_type")]
         public string ChatType { get; set; } = string.Empty;
     }

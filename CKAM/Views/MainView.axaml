@@ -6,7 +6,8 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="CKAM.Views.MainView"
              x:DataType="vm:MainViewModel"
-             xmlns:converter="clr-namespace:CKAM.Converters">
+             xmlns:converter="clr-namespace:CKAM.Converters"
+             xmlns:models="clr-namespace:CKAM.Models">
   <Design.DataContext>
     <!-- This only sets the DataContext for the previewer in an IDE,
          to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
@@ -16,6 +17,7 @@
         <converter:RegistrationTitleConverter x:Key="RegistrationTitleConverter"/>
     </UserControl.Resources>
   <Panel>
+      <!-- Авторизация -->
       <Image IsVisible="{Binding !IsLoggedIn}" Source="avares://CKAM/Assets/max.jpg" Stretch="Fill"/>
 	  <StackPanel Spacing="15" VerticalAlignment="Center" HorizontalAlignment="Center" Width="450" IsVisible="{Binding !IsLoggedIn}">
 		  <TextBlock Text="МАКС" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="67" FontWeight="Bold" Foreground="White"/>
@@ -26,6 +28,7 @@
           <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" Foreground="White"></TextBlock>
           <Button Content="{Binding SwitchModeText}" Width="270" Height="40" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding SwitchAuthModeCommand}" Foreground="Green"/>
       </StackPanel>
+      <!-- Основной интерфейс -->
       <Grid IsVisible="{Binding IsLoggedIn}" ColumnDefinitions="300, Auto, *">
     
        <Grid Grid.Column="0" RowDefinitions="Auto, *" IsVisible="{Binding IsLoggedIn}">
@@ -37,13 +40,16 @@
                      VerticalContentAlignment="Center" CornerRadius="15" />
             </Grid>
 
-            <ListBox Grid.Row="1" ItemsSource="{Binding Chats}" Background="Transparent">
+            <ListBox SelectedItem="{Binding SelectedChat}" Grid.Row="1" ItemsSource="{Binding Chats}" Background="Transparent">
                 <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Margin="5" Spacing="2">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
-                            <!-- <TextBlock Text="Последнее сообщение..." FontSize="12" Foreground="Gray" MaxLines="1" /> -->
-                        </StackPanel>
+                    <DataTemplate x:DataType="models:Chat">
+                        <Grid Margin="5" ColumnDefinitions="Auto, *">
+                             <Ellipse Grid.Column="0" Width="45" Height="45" Fill="Green"/>
+                              <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="24" Foreground="White"/>
+                                  <TextBlock Text="{Binding Descr}" FontSize="14" Foreground="Gray"/>
+                              </StackPanel>
+                        </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
