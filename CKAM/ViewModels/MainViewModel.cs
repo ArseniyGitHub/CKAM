@@ -29,8 +29,13 @@ public partial class MainViewModel : ViewModelBase
     private string authButtonText = "Выйти";
     [ObservableProperty]
     private string switchModeText = "Нет аккаунта? Пожаловаться";
+    [ObservableProperty]
+    private string currentChatName = "";
+    [ObservableProperty]
+    private string currentChatStatus = "";
 
     public ObservableCollection<Message> Messages { get; } = new();
+    public ObservableCollection<Chat> Chats { get; } = new();
     async Task LoginAsync()
     {
         try
@@ -87,5 +92,22 @@ public partial class MainViewModel : ViewModelBase
         AuthButtonText = IsRegisterMode ? "Зарегистрироваться" : "Войти";
         SwitchModeText = IsRegisterMode ? "Уже есть аккаунт? Войти" : "Нет аккаунта? Пожаловаться";
         StatusMessage = "";
+    }
+
+    [RelayCommand]
+    async Task OpenSettings()
+    {
+
+    }
+
+    [RelayCommand]
+    async Task CreateChat()
+    {
+
+    }
+    [RelayCommand]
+    async Task AddFile()
+    {
+
     }
 }

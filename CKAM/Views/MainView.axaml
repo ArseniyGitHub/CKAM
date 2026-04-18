@@ -17,7 +17,7 @@
     </UserControl.Resources>
   <Panel>
       <Image IsVisible="{Binding !IsLoggedIn}" Source="avares://CKAM/Assets/max.jpg" Stretch="Fill"/>
-	  <StackPanel Spacing="15" VerticalAlignment="Center" HorizontalAlignment="Center" Width="450">
+	  <StackPanel Spacing="15" VerticalAlignment="Center" HorizontalAlignment="Center" Width="450" IsVisible="{Binding !IsLoggedIn}">
 		  <TextBlock Text="МАКС" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="67" FontWeight="Bold" Foreground="White"/>
           <TextBlock Text="{Binding IsRegisterMode, Converter={StaticResource RegistrationTitleConverter}}" HorizontalAlignment="Center" FontSize="17" VerticalAlignment="Center" Foreground="Gray" Margin="0 0 0 10"/>
           <TextBox Text="{Binding Username}" Width="300" Height="40" Watermark="Имя пользователя"/>
@@ -26,23 +26,80 @@
           <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" Foreground="White"></TextBlock>
           <Button Content="{Binding SwitchModeText}" Width="270" Height="40" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding SwitchAuthModeCommand}" Foreground="Green"/>
       </StackPanel>
-      <Grid IsVisible="{Binding IsLoggedIn}" RowDefinitions="*,auto">
-		  <ListBox ItemsSource="{Binding Messages}" >
-              <ListBox.ItemTemplate>
-                   <DataTemplate>
-					   <StackPanel Margin="5" Spacing="5">
-                           <TextBlock Text="{Binding SenderName}" FontWeight="Bold" Foreground="SkyBlue" />
-                           <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
-                           <TextBlock Text="{Binding CreatedAt}" TextWrapping="Wrap" Foreground="Gray" />
-                       </StackPanel>
-                   </DataTemplate>
-              </ListBox.ItemTemplate>
-          </ListBox>
-          <Grid Grid.Row="1" ColumnDefinitions="*,auto" Margin="0,10,0,0">
-              <TextBox Text="{Binding MessageContent}" Grid.Column="0" Height="30" Watermark="Введите сообщение..."></TextBox>
-              <Button Grid.Column="1" Content="Отправить" Margin="5,0,0,0" Width="100" Height="30" Command="{Binding SendMessageCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"></Button>
-          </Grid>
-      </Grid>
+      <Grid IsVisible="{Binding IsLoggedIn}" ColumnDefinitions="300, Auto, *">
+    
+       <Grid Grid.Column="0" RowDefinitions="Auto, *" IsVisible="{Binding IsLoggedIn}">
+   
+            <Grid Grid.Row="0" ColumnDefinitions="Auto, *" Margin="10">
+                <Button Grid.Column="0" Content="☰" Width="40" Height="40" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    Background="Transparent" Command="{Binding OpenSettingsCommand}" />
+                <TextBox Grid.Column="1" Margin="10,0,0,0" Watermark="Поиск" 
+                     VerticalContentAlignment="Center" CornerRadius="15" />
+            </Grid>
+
+            <ListBox Grid.Row="1" ItemsSource="{Binding Chats}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="5" Spacing="2">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
+                            <!-- <TextBlock Text="Последнее сообщение..." FontSize="12" Foreground="Gray" MaxLines="1" /> -->
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Button Grid.Row="1" Content="+" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Width="40" Height="40" CornerRadius="20"
+                FontSize="20" FontWeight="Bold"
+                Background="DarkBlue" Foreground="White"
+                VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                Margin="0,0,20,20"
+                Command="{Binding CreateChatCommand}" />
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="1" Background="Gray"/>
+
+        <Grid Grid.Column="2" RowDefinitions="Auto, *, Auto">
+        
+        <Border Grid.Row="0" Height="60" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="15,0">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding CurrentChatName}" FontWeight="Bold" FontSize="16"/>
+                <TextBlock Text="{Binding CurrentChatStatus}" FontSize="12" Foreground="Gray"/>
+            </StackPanel>
+        </Border>
+
+        <ListBox Grid.Row="1" ItemsSource="{Binding Messages}" BorderThickness="0">
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="HorizontalAlignment" Value="Left" />
+                    <Setter Property="MaxWidth" Value="500" />
+                </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="DarkGreen" CornerRadius="10" Padding="10" Margin="5">
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="{Binding SenderName}" FontWeight="Bold" Foreground="SkyBlue" FontSize="12" />
+                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding CreatedAt}" FontSize="10" Foreground="Gray" HorizontalAlignment="Right" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Grid Grid.Row="2" ColumnDefinitions="Auto, *, Auto" Margin="10,5,10,15">
+            <Button Grid.Column="0" Content="📎" Background="Transparent" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddFileCommand}"/>
+            <TextBox Grid.Column="1" Text="{Binding MessageContent}" 
+                     Watermark="Напишите сообщение..." 
+                     TextWrapping="Wrap" MaxHeight="100"
+                     AcceptsReturn="True" BorderThickness="0" Background="Transparent"/>
+            <Button Grid.Column="2" Content="Отправить" 
+                    FontWeight="SemiBold" Foreground="SkyBlue" Background="Transparent"
+                    Command="{Binding SendMessageCommand}" />
+        </Grid>
+    </Grid>
+</Grid>
       
   </Panel>
 </UserControl>
