@@ -11,9 +11,9 @@ namespace CKAM.Models
         [JsonPropertyName("sender_name")]
         public string SenderName { get; set; } = string.Empty;
         [JsonPropertyName("sender_id")]
-        long SenderId;
+        public long SenderId;
         [JsonPropertyName("id")]
-        long Id { get; set; }
+        public long Id { get; set; }
         [JsonPropertyName("content")]
         public string Content { get; set; } = string.Empty;
         [JsonPropertyName("created_at")]

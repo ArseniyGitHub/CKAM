@@ -10,11 +10,50 @@ using System.Net.Http.Json;
 using System.Threading;
 using System.Text.Json;
 using System.Diagnostics;
+using System.IO;
+using System.Net;
+using MimeKit;
+// using System.Net.Mime;
 
 namespace CKAM.Services
 {
     internal class ChatService
     {
+        public class ProgressableStringContent : HttpContent 
+        {
+            private readonly Stream stream;
+            private readonly int bufferSize;
+            private readonly Action<long, long> onProgress;
+            public ProgressableStringContent(Stream _stream, int _bufferSize, Action<long, long> _onProgress)
+            {
+                stream = _stream;
+                bufferSize = _bufferSize;
+                onProgress = _onProgress;
+            }
+
+            protected override async Task SerializeToStreamAsync(Stream _stream, TransportContext? context)
+            {
+                var buffer = new byte[bufferSize];
+                long totalRead = 0;
+                long totalLength = stream.Length;
+                while (true)
+                {
+                    var read = await stream.ReadAsync(buffer, 0, buffer.Length);
+                    if (read <= 0) break;
+                    await _stream.WriteAsync(buffer, 0, read);
+                    totalRead += read;
+                    onProgress.Invoke(totalRead, totalLength);
+                }
+            }
+
+            protected override bool TryComputeLength(out long length)
+            {
+                length = stream.Length;
+                return true;
+            }
+        }
+
+
         private string? token;
         private long? user_id;
         private ClientWebSocket webSocket;
@@ -130,11 +169,12 @@ namespace CKAM.Services
             await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
-        public async Task SendMessageAsync(string content, long chat_id) => await SendEventAsync(new
+        public async Task SendMessageAsync(string content, long chat_id, List<string> attachmentIds) => await SendEventAsync(new
         {
             type = "message",
             content = content,
-            chat_id = chat_id
+            chat_id = chat_id,
+            attachments = attachmentIds,
         });
 
         public async Task SendJoinRoomAsync(long chat_id) => await SendEventAsync(new
@@ -142,6 +182,35 @@ namespace CKAM.Services
             type = "join_room",
             chat_id = chat_id
         });
+
+        public async Task<string?> UploadFileAsync(string filename, Action<double> onProgress)
+        {
+            try
+            {
+                var fileinfo = new FileInfo(filename);
+                using var req = new HttpRequestMessage(HttpMethod.Post, "api/upload");
+                using var fileStream = fileinfo.OpenRead();
+                var content = new ProgressableStringContent(fileStream, 4096, (sent, total) =>
+                {
+                    onProgress.Invoke((double)sent / total);
+                });
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Add("X-File-Name", fileinfo.Name);
+                req.Content = content;
+                req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(MimeTypes.GetMimeType(filename));
+                var responce = await httpClient.SendAsync(req);
+                if (responce.IsSuccessStatusCode)
+                {
+                    var json = await responce.Content.ReadFromJsonAsync<JsonElement>();
+                    return json.GetProperty("attachment_id").GetString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Все сломалось, не могу загрузить свое видео по летсплею в майнкрафте: {ex.ToString()}");
+            }
+            return null;
+        }
 
         public async Task SendTypingAsync(long chat_id) => await SendEventAsync(new
         {

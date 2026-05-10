@@ -9,6 +9,10 @@ using Avalonia.Threading;
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Collections.Generic;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using System.Linq;
 
 public partial class MainViewModel : ViewModelBase
 {
@@ -44,6 +48,23 @@ public partial class MainViewModel : ViewModelBase
     private string newChatDescr = "";
     [ObservableProperty]
     private string newChatType = "";
+    [ObservableProperty]
+    private List<string> variantsOfChatType = new() { "group", "channel", "private" };
+    [ObservableProperty]
+    private ObservableCollection<FileAttachmentViewModel> attachments = new();
+    [RelayCommand]
+    async Task AddFile()
+    {
+        var topLevel = TopLevel.GetTopLevel(App.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d ? d.MainWindow : null);
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions { AllowMultiple = true });
+        
+        foreach (var file in files)
+        {
+            var vm = new FileAttachmentViewModel { Name = file.Name, Path = file.Path.LocalPath  };
+            
+        }
+    }
+
     partial void OnSelectedChatChanged(Chat? value)
     {
         if (value != null)
@@ -60,11 +81,11 @@ public partial class MainViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() =>
         {
             Messages.Clear();
-            foreach (var message in history) Messages.Add(message);
+            foreach (var message in history) Messages.Add(new(message, user_id));
         });
     }
 
-    public ObservableCollection<Message> Messages { get; } = new();
+    public ObservableCollection<MessageViewModel> Messages { get; } = new();
     public ObservableCollection<Chat> Chats { get; } = new();
     async Task LoginAsync()
     {
@@ -87,7 +108,7 @@ public partial class MainViewModel : ViewModelBase
                 });
                 */
                 await chatService.ConnectWebSocketAsync();
-                chatService.OnMessageReceived += (message => Dispatcher.UIThread.Post(() => Messages.Add(message)));
+                chatService.OnMessageReceived += (message => Dispatcher.UIThread.Post(() => Messages.Add(new(message, user_id))));
                 IsLoggedIn = true;
             }
             else IsLoggedIn = false;
@@ -119,7 +140,43 @@ public partial class MainViewModel : ViewModelBase
     {
         if(string.IsNullOrWhiteSpace(MessageContent)) return;
         if (SelectedChat == null) return;
-        await chatService.SendMessageAsync(MessageContent, SelectedChat.Id);
+        var selectedFiles = new List<string>();
+        foreach (var e in attachments) selectedFiles.Append(e.Path);
+        var tempMsg = new MessageViewModel{ Content = MessageContent, ChatId = SelectedChat.Id, CreatedAt = DateTime.Now.ToString("HH:mm"), IsSending = true };
+        Messages.Add(tempMsg);
+        _ = Task.Run(async () => 
+        {
+            try
+            {
+                List<string> uploaded_ids = new();
+                foreach (var e in attachments)
+                {
+                    var id = await chatService.UploadFileAsync(e.Path, p => { });
+                    if (id != null)
+                    {
+                        e.Id = id;
+                        uploaded_ids.Append(id);
+                    }
+                }
+                await chatService.SendMessageAsync(MessageContent, SelectedChat.Id, selectedFiles);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    tempMsg.IsSending = false;
+                });
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    tempMsg.IsSending = false;
+                    tempMsg.IsError = true;
+                });
+                //TODO: Доделать отправку сообщений с вложениями.
+            }
+            
+        });
+
         // Messages.Add(new Message { SenderName = Username, Content = MessageContent, CreatedAt = DateTime.Now.ToString("HH:mm:ss") });
         MessageContent = "";
     }
@@ -140,7 +197,13 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CreateChat() => IsCreatingChatOverlay = true;
+    private void OpenNewChatOverlayWindow()
+    {
+        NewChatName = "";
+        NewChatDescr = "";
+        NewChatType = "chat";
+        IsCreatingChatOverlay = true;
+    }
     [RelayCommand]
     private void CancelCreateChat()
     {
@@ -156,14 +219,13 @@ public partial class MainViewModel : ViewModelBase
         var newChat = await chatService.CreateChatAsync(NewChatName, NewChatType, NewChatDescr);
         if(newChat is not null)
         {
-            Chats.Add(newChat);
+            await chatService.SendJoinRoomAsync(newChat.Id);
             SelectedChat = newChat;
-            await chatService.GetChatHistoryAsync(newChat.Id);
+            // await chatService.GetChatHistoryAsync(newChat.Id);
+            OnSelectedChatChanged(newChat);
+            Debug.WriteLine($"{newChat.ToString()}");
+            Chats.Add(newChat);
+            IsCreatingChatOverlay = false;
         }
-    }
-    [RelayCommand]
-    async Task AddFile()
-    {
-
     }
 }
