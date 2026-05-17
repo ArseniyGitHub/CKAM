@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using System.Linq;
+using System.Net.Mail;
 
 public partial class MainViewModel : ViewModelBase
 {
@@ -56,13 +57,23 @@ public partial class MainViewModel : ViewModelBase
     async Task AddFile()
     {
         var topLevel = TopLevel.GetTopLevel(App.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d ? d.MainWindow : null);
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions { AllowMultiple = true });
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions { AllowMultiple = true, Title = "Выберите файлы для отправки в ФСБ" });
         
         foreach (var file in files)
-        {
-            var vm = new FileAttachmentViewModel { Name = file.Name, Path = file.Path.LocalPath  };
-            
-        }
+            AddAttachment(file.Path.LocalPath);
+    }
+    [RelayCommand]
+    private void RemoveAttachment(FileAttachmentViewModel attachment)
+    {
+        Attachments.Remove(attachment);
+    }
+
+    public void AddAttachment(string path)
+    {
+        var fileinfo = new System.IO.FileInfo(path);
+        if (!fileinfo.Exists) return;
+        if(Attachments.Any(a => a.Path == path)) return;
+        Attachments.Add(new FileAttachmentViewModel { Name = fileinfo.Name, Path = path, Size = fileinfo.Length, IsUploaded = false });
     }
 
     partial void OnSelectedChatChanged(Chat? value)
@@ -108,7 +119,28 @@ public partial class MainViewModel : ViewModelBase
                 });
                 */
                 await chatService.ConnectWebSocketAsync();
-                chatService.OnMessageReceived += (message => Dispatcher.UIThread.Post(() => Messages.Add(new(message, user_id))));
+                chatService.OnMessageReceived += (message => Dispatcher.UIThread.Post(() => {
+                    if(message.SenderId == user_id)
+                    {
+                        var tempMessage = Messages.FirstOrDefault(m => m.IsSending && m.Content == message.Content);
+                        if(tempMessage != null)
+                        {
+                            tempMessage.IsSending = false;
+                            tempMessage.Id = message.Id;
+                            tempMessage.CreatedAt = message.CreatedAt;
+                            tempMessage.Attachments.Clear();
+                            if (message.Attachments != null)
+                            {
+                                foreach (var att in message.Attachments)
+                                {
+                                    tempMessage.Attachments.Add(new AttachmentItemViewModel { Id = att.Id, Name = att.Name, Type = att.ContentType });
+                                }
+                            }
+                            return;
+                        }
+                    }
+                    Messages.Add(new(message, user_id));
+                }));
                 IsLoggedIn = true;
             }
             else IsLoggedIn = false;
@@ -138,31 +170,27 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     async Task SendMessageAsync()
     {
-        if(string.IsNullOrWhiteSpace(MessageContent)) return;
         if (SelectedChat == null) return;
-        var selectedFiles = new List<string>();
-        foreach (var e in attachments) selectedFiles.Append(e.Path);
-        var tempMsg = new MessageViewModel{ Content = MessageContent, ChatId = SelectedChat.Id, CreatedAt = DateTime.Now.ToString("HH:mm"), IsSending = true };
+        if (string.IsNullOrWhiteSpace(MessageContent) && Attachments.Count == 0) return;
+        string msgText = MessageContent;
+        long chat_id = SelectedChat.Id;
+        var files_to_upload = Attachments.Select(a => new { name = a.Name, path = a.Path }).ToList();
+        var tempMsg = new MessageViewModel{ Content = MessageContent, ChatId = SelectedChat.Id, CreatedAt = DateTime.Now.ToString("HH:mm"), IsSending = true, SenderName = Username };
         Messages.Add(tempMsg);
+        MessageContent = "";
+        Attachments.Clear();
         _ = Task.Run(async () => 
         {
             try
             {
                 List<string> uploaded_ids = new();
-                foreach (var e in attachments)
+                foreach (var e in files_to_upload)
                 {
-                    var id = await chatService.UploadFileAsync(e.Path, p => { });
-                    if (id != null)
-                    {
-                        e.Id = id;
+                    var id = await chatService.UploadFileAsync(e.path, p => { });
+                    if (!string.IsNullOrEmpty(id))
                         uploaded_ids.Append(id);
-                    }
                 }
-                await chatService.SendMessageAsync(MessageContent, SelectedChat.Id, selectedFiles);
-                Dispatcher.UIThread.Post(() =>
-                {
-                    tempMsg.IsSending = false;
-                });
+                await chatService.SendMessageAsync(msgText, chat_id, uploaded_ids);
             }
             catch (Exception e)
             {

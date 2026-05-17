@@ -22,21 +22,26 @@
 	  <StackPanel Spacing="15" VerticalAlignment="Center" HorizontalAlignment="Center" Width="450" IsVisible="{Binding !IsLoggedIn}">
 		  <TextBlock Text="МАКС" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="67" FontWeight="Bold" Foreground="White"/>
           <TextBlock Text="{Binding IsRegisterMode, Converter={StaticResource RegistrationTitleConverter}}" HorizontalAlignment="Center" FontSize="17" VerticalAlignment="Center" Foreground="Gray" Margin="0 0 0 10"/>
-          <TextBox Text="{Binding Username}" Width="300" Height="40" Watermark="Имя пользователя"/>
-          <TextBox Text="{Binding Password}" Width="300" Height="40" Watermark="Пароль" PasswordChar="*"/>
+          <TextBox Text="{Binding Username}" Width="300" Height="40" PlaceholderText="Имя пользователя"/>
+          <TextBox Text="{Binding Password}" Width="300" Height="40" PlaceholderText="Пароль" PasswordChar="*"/>
           <Button Content="{Binding AuthButtonText}" Width="170" Height="40" Command="{Binding ExecAuthCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Foreground="White" Background="#3D5AFE" FontWeight="SemiBold"></Button>
           <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" Foreground="White"></TextBlock>
           <Button Content="{Binding SwitchModeText}" Width="270" Height="40" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding SwitchAuthModeCommand}" Foreground="Green"/>
       </StackPanel>
       <!-- Основной интерфейс -->
-      <Grid IsVisible="{Binding IsLoggedIn}" ColumnDefinitions="300, Auto, *">
+      <Grid IsVisible="{Binding IsLoggedIn}"
+            ColumnDefinitions="300, Auto, *"
+            DragDrop.AllowDrop="True"
+            DragDrop.DragOver="OnDragOver"
+            DragDrop.Drop="OnDrop"
+            >
     
        <Grid Grid.Column="0" RowDefinitions="Auto, *" IsVisible="{Binding IsLoggedIn}">
    
             <Grid Grid.Row="0" ColumnDefinitions="Auto, *" Margin="10">
                 <Button Grid.Column="0" Content="☰" Width="40" Height="40" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                     Background="Transparent" Command="{Binding OpenSettingsCommand}" />
-                <TextBox Grid.Column="1" Margin="10,0,0,0" Watermark="Поиск" 
+                <TextBox Grid.Column="1" Margin="10,0,0,0" PlaceholderText="Поиск" 
                      VerticalContentAlignment="Center" CornerRadius="15" />
             </Grid>
 
@@ -74,7 +79,7 @@
             </StackPanel>
         </Border>
 
-        <ListBox Grid.Row="1" ItemsSource="{Binding Messages}" BorderThickness="0">
+        <ListBox Grid.Row="1" ItemsSource="{Binding Messages}" BorderThickness="0"> <!-- список сообщений -->
             <ListBox.Styles>
                 <Style Selector="ListBoxItem">
                     <Setter Property="HorizontalAlignment" Value="Left" />
@@ -82,29 +87,64 @@
                 </Style>
             </ListBox.Styles>
             <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Border Background="DarkGreen" CornerRadius="10" Padding="10" Margin="5">
+                <DataTemplate x:DataType="vm:MessageViewModel">
+                    <Border Background="DarkGreen" CornerRadius="10" Padding="10" Margin="5" HorizontalAlignment="Left">
                         <StackPanel Spacing="5">
                             <TextBlock Text="{Binding SenderName}" FontWeight="Bold" Foreground="SkyBlue" FontSize="12" />
                             <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding CreatedAt}" FontSize="10" Foreground="Gray" HorizontalAlignment="Right" />
+                            <ItemsControl ItemsSource="{Binding Attachments}">
+                                <ItemsControl.ItemTemplate>
+									<DataTemplate>
+										<Border Background="#880994" CornerRadius="5" Margin="0,2" Padding="5">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <TextBlock Text="📁"/>
+												<TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"></TextBlock>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="5">
+								<TextBlock Text="{Binding CreatedAt}" FontSize="10" Foreground="Gray"/>
+                                <TextBlock Text="🕐" IsVisible="{Binding IsSending}" FontSize="10"/>
+                                <TextBlock Text="❌" IsVisible="{Binding IsError}" FontSize="10"/>
+                            </StackPanel>
+                            
                         </StackPanel>
                     </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-
-        <Grid Grid.Row="2" ColumnDefinitions="Auto, *, Auto" Margin="10,5,10,15">
+        <StackPanel Grid.Row="2" Background="Olive">
+            <ListBox ItemsSource="{Binding Attachments}" IsVisible="{Binding Attachments.Count}" Height="50" Background="Transparent">
+				<ListBox.ItemsPanel>
+					<ItemsPanelTemplate>
+						<StackPanel Orientation="Horizontal" Spacing="3"/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+					<DataTemplate x:DataType="vm:FileAttachmentViewModel">
+                        <Border Background="DarkSlateBlue" CornerRadius="5" Padding="5" Margin="2">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <TextBlock Text="📁" VerticalAlignment="Center"></TextBlock>
+							    <TextBlock Text="{Binding Name}" FontSize="10" MaxWidth="150" TextTrimming="CharacterEllipsis"/>
+                                <Button Content="🗑️" Background="Transparent" Foreground="Red" Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).RemoveAttachmentCommand}" CommandParameter="{Binding}" Padding="2" BorderThickness="0"></Button>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <Grid ColumnDefinitions="Auto, *, Auto" Margin="10,5,10,15">
             <Button Grid.Column="0" Content="📎" Background="Transparent" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddFileCommand}"/>
             <TextBox Grid.Column="1" Text="{Binding MessageContent}" 
-                     Watermark="Напишите сообщение..." 
+                     PlaceholderText="Напишите сообщение..." 
                      TextWrapping="Wrap" MaxHeight="100"
                      AcceptsReturn="True" BorderThickness="0" Background="Transparent"/>
             <Button Grid.Column="2" Content="Отправить" 
                     FontWeight="SemiBold" Foreground="SkyBlue" Background="Transparent"
                     Command="{Binding SendMessageCommand}" />
         </Grid>
-
+        </StackPanel>
         
     </Grid>
 
@@ -129,8 +169,8 @@
                     HorizontalAlignment="Stretch"
                     PlaceholderText="Нажмите, чтобы выбрать..." />
 
-                <TextBox Text="{Binding NewChatName}" Watermark="Имя чата"></TextBox>
-                <TextBox Text="{Binding NewChatDescr}" Watermark="Описание"></TextBox>
+                <TextBox Text="{Binding NewChatName}" PlaceholderText="Имя чата"></TextBox>
+                <TextBox Text="{Binding NewChatDescr}" PlaceholderText="Описание"></TextBox>
                 
                 </StackPanel>
                 <Button Content="Закрыть" 

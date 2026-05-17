@@ -194,8 +194,10 @@ namespace CKAM.Services
                 {
                     onProgress.Invoke((double)sent / total);
                 });
+                var filenameBytes = Encoding.UTF8.GetBytes(fileinfo.Name);
+                var bytes64 = Convert.ToBase64String(filenameBytes);
                 req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Add("X-File-Name", fileinfo.Name);
+                req.Headers.Add("X-File-Name", bytes64);
                 req.Content = content;
                 req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(MimeTypes.GetMimeType(filename));
                 var responce = await httpClient.SendAsync(req);
